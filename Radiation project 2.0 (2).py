@@ -120,10 +120,6 @@ decay_series = {
     }
 }
 
-series_name = st.selectbox(
-    "Choose decay series",
-    list(decay_series.keys()) + ["Custom (User-defined)"]
-)
 
 
 
@@ -133,17 +129,16 @@ st.markdown("### Nuclear Instability & Radioactive Equilibrium")
 
 series_name = st.selectbox(
     "Choose decay series",
-    list(decay_series.keys())
+    list(decay_series.keys()) + ["Custom (User-defined)"]
 )
-
 plot_mode = st.radio(
     "Plot type",
     ["Parent only", "Combined (Parent + Daughter + Granddaughter)"]
 )
 
+submitted = False
 
- # ---------- Series selector ----------        
-if series_name == "Custom (User-defined)":
+if series_name == "Custom (User-defined)" and submitted:
     st.subheader("Custom decay chain input")
 
     A10 = st.number_input(
@@ -179,11 +174,12 @@ if series_name == "Custom (User-defined)":
     }
 
     equilibrium_label = "User-defined"
+    stable_label = "—"
 
-else:
-    # existing preset logic
-
+elif series_name != "Custom (User-defined)" and submitted:
     series = decay_series[series_name]
+
+    A10 = 1.0
 
     T1 = to_days(series["parent"][1], series["parent"][2])
     T2 = to_days(series["daughter"][1], series["daughter"][2])
@@ -193,10 +189,35 @@ else:
         "parent": f'{series["parent"][0]} (T½={series["parent"][1]} {series["parent"][2]})',
         "daughter": f'{series["daughter"][0]} (T½={series["daughter"][1]} {series["daughter"][2]})',
         "granddaughter": f'{series["granddaughter"][0]} (T½={series["granddaughter"][1]} {series["granddaughter"][2]})'
-        }
+    }
+
+    equilibrium_label = series["equilibrium"]
+    stable_label = series["stable"]
+
+if submitted:
+    t, A1, A2, A3 = bateman_chain(A10, T1, T2, T3)
+
+    fig, ax = plt.subplots()
+
+    if plot_mode == "Parent only":
+        ax.semilogy(t, A1, label=labels["parent"])
+    else:
+        ax.semilogy(t, A1, label=labels["parent"])
+        ax.semilogy(t, A2, label=labels["daughter"])
+        ax.semilogy(t, A3, label=labels["granddaughter"])
+
+    ax.set_xlabel("Time (days)")
+    ax.set_ylabel("Relative Activity (A / A₀)")
+    ax.set_title(f"{series_name} — {equilibrium_label} Equilibrium")
+    ax.legend()
+    ax.grid(True, which="both")
+
+    st.pyplot(fig)
+    st.markdown(f"**Stable end product:** {stable_label}")
+
+
 
  # ---------- Simulation & plotting ---------- 
-A10 = 1.0  # relative initial activity
 
 t, A1, A2, A3 = bateman_chain(A10, T1, T2, T3)
 
@@ -211,15 +232,14 @@ else:
 
 ax.set_xlabel("Time (days)")
 ax.set_ylabel("Relative Activity (A / A₀)")
-ax.set_title(f"{series_name} — {series['equilibrium']} Equilibrium")
+ax.set_title(f"{series_name} — {equilibrium_label} Equilibrium")
+st.markdown(f"**Stable end product:** {stable_label}")
 ax.legend()
 ax.grid(True, which="both")
 
 st.pyplot(fig)
 
-st.markdown(
-    f"**Stable end product:** {series['stable']}"
-)
+
  
 
 
